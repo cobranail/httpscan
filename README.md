@@ -9,4 +9,4 @@ httpscan会返回IP http状态码 Web容器版本 以及网站标题。
 Example:`./httpscan.py 10.20.30.0/24 –t 10 -ports 80,8080-8090`
 
 
-  [1]: https://raw.githubusercontent.com/zer0h/httpscan/master/log/demo.png
+  [1]: https://raw.githubusercontent.com/cobranail/httpscan/master/log/demo.png
