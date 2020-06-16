@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #coding:utf-8
 # Author: Zeroh
+# Modified: Cobranail
 
 import re
 import sys
@@ -11,26 +12,43 @@ import requests
 from IPy import IP
 
 printLock = threading.Semaphore(1)  #lock Screen print
-TimeOut = 5  #request timeout
+TimeOut = (0.5,1)  #request timeout, for slow connection
 
 #User-Agent
 header = {'User-Agent' : 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.125 Safari/537.36','Connection':'close'}
 
 class scan():
 
-  def __init__(self,cidr,threads_num):
+  def __init__(self,cidr, threads_num, ports):
     self.threads_num = threads_num
+    self.ports=[]
+    ports_set=[]
+    if ',' in ports:
+      ports_set=ports.split(',')
+    else:
+      ports_set=[ports]
+    #print ports_set
+    for ps in ports_set:
+      if '-' in ps:
+        pp = ps.split('-')
+        self.ports = self.ports+range(int(pp[0]),int(pp[1])+1)
+      else:
+        self.ports.append(ps)
+    #print self.ports
     self.cidr = IP(cidr)
 	#build ip queue
     self.IPs = Queue.Queue()
     for ip in self.cidr:
-      ip = str(ip)
-      self.IPs.put(ip)
+      for port in self.ports:
+        ipp = str(ip)+':'+str(port)
+        #print ipp
+        self.IPs.put(ipp)
 
   def request(self):
     with threading.Lock():
       while self.IPs.qsize() > 0:
         ip = self.IPs.get()
+        #print str(ip)
         try:
           r = requests.Session().get('http://'+str(ip),headers=header,timeout=TimeOut)
           status = r.status_code
@@ -44,8 +62,8 @@ class scan():
             banner += r.headers['Server'][:20] #get the server banner
           except:pass
           printLock.acquire()
-          print "|%-16s|%-6s|%-20s|%-30s|" % (ip,status,banner,title)
-          print "+----------------+------+--------------------+------------------------------+"
+          print "|%-24s|%-6s|%-20s|%-30s|" % (ip,status,banner,title)
+          print "+------------------------+------+--------------------+------------------------------+"
 
           #Save log
           with open("./log/"+self.cidr.strNormal(3)+".log",'a') as f:
@@ -67,14 +85,17 @@ if __name__ == "__main__":
   parser.add_option("-t", "--thread", dest = "threads_num",
     default = 10, type = "int",
     help = "[optional]number of  theads,default=10")
+  parser.add_option("-p", "--ports", dest = "ports",
+    default = '80', type = "string",
+    help = "[optional]number of  theads,default=10")
   (options, args) = parser.parse_args()
   if len(args) < 1:
     parser.print_help()
     sys.exit(0)
 
-  print "+----------------+------+--------------------+------------------------------+"
-  print "|     IP         |Status|       Server       |            Title             |"
-  print "+----------------+------+--------------------+------------------------------+"
+  print "+------------------------+------+--------------------+------------------------------+"
+  print "|          IP            |Status|       Server       |            Title             |"
+  print "+------------------------+------+--------------------+------------------------------+"
 
-  s = scan(cidr=args[0],threads_num=options.threads_num)
+  s = scan(cidr=args[0],threads_num=options.threads_num, ports=options.ports)
   s.run()
